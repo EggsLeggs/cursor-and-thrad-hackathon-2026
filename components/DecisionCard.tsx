@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { AlertTriangle, Check, Flag, X } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Check, ChevronRight, Flag, X } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { Decision } from "@/lib/store";
 
@@ -44,35 +45,47 @@ export function DecisionCard({
           ? "border-red-500/30"
           : "border-border";
 
+  const detailHref = `/campaigns/${campaignId}/decisions/${d.id}`;
+
   return (
     <div
-      className={`space-y-3 rounded-lg border bg-card p-4 text-card-foreground transition-colors duration-150 ${borderClass}`}
+      className={`space-y-3 rounded-lg border bg-card text-card-foreground transition-colors duration-150 ${borderClass}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge
-            status={
-              d.humanAction === "vetoed"
-                ? "vetoed"
-                : d.humanAction === "approved"
-                  ? "approved"
-                  : d.decision
-            }
-          />
-          <span className="font-mono text-xs text-muted-foreground">{d.id.slice(0, 8)}</span>
+      <Link
+        href={detailHref}
+        className="block space-y-3 rounded-lg p-4 transition-colors hover:bg-muted"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              status={
+                d.humanAction === "vetoed"
+                  ? "vetoed"
+                  : d.humanAction === "approved"
+                    ? "approved"
+                    : d.decision
+              }
+            />
+            <span className="font-mono text-xs text-muted-foreground">{d.id.slice(0, 8)}</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="font-mono text-xs text-muted-foreground">{time}</span>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          </div>
         </div>
-        <span className="shrink-0 font-mono text-xs text-muted-foreground">{time}</span>
-      </div>
 
-      <div className="rounded-md bg-muted p-2.5 font-mono text-xs leading-relaxed text-muted-foreground">
-        <span className="mr-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          ctx
-        </span>
-        &quot;{d.contextSnippet}
-        {d.contextSnippet.length >= 120 ? "…" : ""}&quot;
-      </div>
+        <div className="rounded-md bg-muted p-2.5 font-mono text-xs leading-relaxed text-muted-foreground">
+          <span className="mr-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            ctx
+          </span>
+          &quot;{d.contextSnippet}
+          {d.contextSnippet.length >= 120 ? "…" : ""}&quot;
+        </div>
 
-      <p className="text-sm leading-relaxed">{d.reasoning}</p>
+        <p className="line-clamp-2 text-sm leading-relaxed">{d.reasoning}</p>
+      </Link>
+
+      <div className="space-y-3 px-4 pb-4 pt-0">
 
       <div className="flex flex-wrap gap-4 font-mono text-xs text-muted-foreground">
         <span>
@@ -100,7 +113,7 @@ export function DecisionCard({
       )}
 
       {d.adReturned && (
-        <div className="space-y-1 rounded-md border border-border bg-muted/50 p-3">
+        <div className="space-y-1 rounded-md border border-border bg-muted p-3">
           <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Ad served
           </div>
@@ -119,14 +132,22 @@ export function DecisionCard({
       )}
 
       {d.humanAction && (
-        <div className="rounded-md bg-muted p-2 font-mono text-xs text-muted-foreground">
-          operator: <span className="text-foreground">{d.humanAction}</span>
-          {d.humanNote && <> — &quot;{d.humanNote}&quot;</>}
-        </div>
+        <>
+          <div className="rounded-md bg-muted p-2 font-mono text-xs text-muted-foreground">
+            operator: <span className="text-foreground">{d.humanAction}</span>
+            {d.humanNote && <> — &quot;{d.humanNote}&quot;</>}
+          </div>
+          <Link
+            href={detailHref}
+            className="block text-center font-mono text-[10px] text-muted-foreground transition-colors hover:text-accent"
+          >
+            View full audit trail →
+          </Link>
+        </>
       )}
 
       {!d.humanAction && (
-        <div className="space-y-2 pt-1">
+        <div className="space-y-2">
           <div className="flex gap-2">
             {(["approved", "vetoed", "flagged"] as const).map((action) => {
               const styles = {
@@ -167,8 +188,15 @@ export function DecisionCard({
             placeholder="Add a note (optional)..."
             className="input font-mono text-xs"
           />
+          <Link
+            href={detailHref}
+            className="block text-center font-mono text-[10px] text-muted-foreground transition-colors hover:text-accent"
+          >
+            View full audit trail →
+          </Link>
         </div>
       )}
+      </div>
     </div>
   );
 }

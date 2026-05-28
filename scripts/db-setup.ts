@@ -28,6 +28,8 @@ const migrations = [
   "drizzle/0000_init.sql",
   "drizzle/0001_scenarios.sql",
   "drizzle/0002_decisions.sql",
+  "drizzle/0003_decision_audit_log.sql",
+  "drizzle/0004_templates.sql",
 ];
 
 async function main() {
@@ -37,7 +39,9 @@ async function main() {
     await sql.unsafe(readFileSync(migrationPath, "utf8"));
   }
   await sql.end();
-  console.log("Done. Tables: user, workspace, campaign, campaign_scenario, decision");
+  console.log(
+    "Done. Tables: user, workspace, campaign, campaign_scenario, decision, template, template_scenario"
+  );
 }
 
 main().catch((err) => {

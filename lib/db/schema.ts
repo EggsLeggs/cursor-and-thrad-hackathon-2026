@@ -7,7 +7,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
-import type { Message } from "@/lib/store";
+import type { DecisionAuditEvent, Message } from "@/lib/store";
 import type { ScenarioCategory } from "@/lib/scenario-categories";
 
 export const users = pgTable("user", {
@@ -57,6 +57,33 @@ export const campaignScenarios = pgTable("campaign_scenario", {
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
 });
 
+export const templates = pgTable("template", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspaceId")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  advertiser: text("advertiser").notNull(),
+  goal: text("goal").notNull().default(""),
+  maxCPM: real("maxCPM").notNull().default(8),
+  brandKeywords: jsonb("brandKeywords").$type<string[]>().notNull().default([]),
+  blockedTopics: jsonb("blockedTopics").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const templateScenarios = pgTable("template_scenario", {
+  id: text("id").primaryKey(),
+  templateId: text("templateId")
+    .notNull()
+    .references(() => templates.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  category: text("category").$type<ScenarioCategory>().notNull(),
+  messages: jsonb("messages").$type<Message[]>().notNull(),
+  sortOrder: integer("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
+});
+
 export type AdReturned = {
   headline: string;
   description: string;
@@ -86,11 +113,14 @@ export const decisions = pgTable("decision", {
   humanRespondedByUserId: text("humanRespondedByUserId").references(() => users.id, {
     onDelete: "set null",
   }),
+  auditLog: jsonb("auditLog").$type<DecisionAuditEvent[]>().notNull().default([]),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
 });
 
 export type DbUser = typeof users.$inferSelect;
 export type DbCampaign = typeof campaigns.$inferSelect;
+export type DbTemplate = typeof templates.$inferSelect;
 export type DbWorkspace = typeof workspaces.$inferSelect;
 export type DbCampaignScenario = typeof campaignScenarios.$inferSelect;
+export type DbTemplateScenario = typeof templateScenarios.$inferSelect;
 export type DbDecision = typeof decisions.$inferSelect;

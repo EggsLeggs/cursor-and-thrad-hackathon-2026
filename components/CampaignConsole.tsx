@@ -163,7 +163,7 @@ export function CampaignConsole({ campaignId }: Props) {
 
         <main className="relative min-h-0 flex-1 overflow-y-auto">
           <PatternedBackground />
-          <div className="relative z-10 px-6 py-6">
+          <div className="relative z-10 bg-background px-6 py-6">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-xs font-medium text-foreground">
                 Decision log
@@ -184,7 +184,7 @@ export function CampaignConsole({ campaignId }: Props) {
                   <button
                     type="button"
                     onClick={clearHistory}
-                    className="rounded-lg border border-border bg-white px-2.5 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:bg-secondary dark:bg-card dark:hover:bg-secondary"
+                    className="rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:bg-secondary"
                   >
                     clear
                   </button>

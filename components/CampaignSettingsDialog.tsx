@@ -30,6 +30,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (settings: CampaignSettings) => void;
+  resourceKind?: "campaign" | "template";
 };
 
 function normalizeTopic(value: string) {
@@ -51,7 +52,10 @@ export function CampaignSettingsDialog({
   open,
   onOpenChange,
   onSaved,
+  resourceKind = "campaign",
 }: Props) {
+  const apiBase =
+    resourceKind === "template" ? "/api/templates" : "/api/campaigns";
   const [goal, setGoal] = useState(settings.goal);
   const [maxCPM, setMaxCPM] = useState(String(settings.maxCPM));
   const [selected, setSelected] = useState<string[]>(settings.blockedTopics);
@@ -124,7 +128,7 @@ export function CampaignSettingsDialog({
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/topics/generate`, {
+      const res = await fetch(`${apiBase}/${campaignId}/topics/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: aiPrompt.trim() }),
@@ -165,7 +169,7 @@ export function CampaignSettingsDialog({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}`, {
+      const res = await fetch(`${apiBase}/${campaignId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

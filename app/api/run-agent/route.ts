@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-import { runDecisionAgent } from "@/lib/agent";
+import { runDecisionAgentWithTracing } from "@/lib/agent";
 import { getAuthorizedCampaign } from "@/lib/campaign-auth";
 import { dbCampaignToAgentCampaign } from "@/lib/campaigns-db";
 import { getScenarioById } from "@/lib/scenarios-db";
@@ -31,6 +31,6 @@ export async function POST(req: NextRequest) {
   }
 
   const campaign = dbCampaignToAgentCampaign(authResult.campaign);
-  runDecisionAgent(campaignId, messages, campaign).catch(console.error);
+  await runDecisionAgentWithTracing(campaignId, messages, campaign);
   return NextResponse.json({ ok: true });
 }

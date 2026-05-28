@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutGrid,
   FileText,
@@ -9,9 +9,10 @@ import {
   PanelLeft,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UserMenu } from "@/components/UserMenu";
 import { Separator } from "@/components/ui/separator";
+import { Kbd } from "@/components/ui/kbd";
 
 const iconClass =
   "h-4 w-4 shrink-0 transition-transform duration-200 ease-out group-hover:scale-110";
@@ -22,14 +23,47 @@ type Props = {
   userEmail: string;
 };
 
-const nav: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/campaigns", label: "Campaigns", icon: LayoutGrid },
-  { href: "/templates", label: "Templates", icon: FileText },
+const nav: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  shortcut: string;
+}[] = [
+  { href: "/campaigns", label: "Campaigns", icon: LayoutGrid, shortcut: "c" },
+  { href: "/templates", label: "Templates", icon: FileText, shortcut: "t" },
 ];
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    target.isContentEditable
+  );
+}
 
 export function AppSidebar({ workspaceName, userName, userEmail }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+
+      const item = nav.find(({ shortcut }) => shortcut === e.key.toLowerCase());
+      if (item) {
+        e.preventDefault();
+        router.push(item.href);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [router]);
 
   return (
     <aside
@@ -82,15 +116,15 @@ export function AppSidebar({ workspaceName, userName, userEmail }: Props) {
       )}
 
       <nav className="flex flex-1 flex-col gap-1 px-2">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, label, icon: Icon, shortcut }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
               href={href}
-              title={collapsed ? label : undefined}
+              title={collapsed ? `${label} (${shortcut})` : undefined}
               className={`group flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors ${
-                collapsed ? "justify-center" : ""
+                collapsed ? "justify-center" : "w-full"
               } ${
                 active
                   ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
@@ -98,7 +132,14 @@ export function AppSidebar({ workspaceName, userName, userEmail }: Props) {
               }`}
             >
               <Icon className={iconClass} />
-              {!collapsed && label}
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  <Kbd className="ml-auto uppercase opacity-0 transition-opacity group-hover:opacity-100">
+                    {shortcut}
+                  </Kbd>
+                </>
+              )}
             </Link>
           );
         })}

@@ -10,6 +10,8 @@ type Props = {
   onSaved: (name: string) => void;
   onAdvertiserSaved: (advertiser: string) => void;
   className?: string;
+  resourceKind?: "campaign" | "template";
+  nameLabel?: string;
 };
 
 export function EditableCampaignName({
@@ -19,7 +21,11 @@ export function EditableCampaignName({
   onSaved,
   onAdvertiserSaved,
   className,
+  resourceKind = "campaign",
+  nameLabel = "Campaign name",
 }: Props) {
+  const apiBase =
+    resourceKind === "template" ? "/api/templates" : "/api/campaigns";
   const [editingName, setEditingName] = useState(false);
   const [editingAdvertiser, setEditingAdvertiser] = useState(false);
   const [nameDraft, setNameDraft] = useState(value);
@@ -92,7 +98,7 @@ export function EditableCampaignName({
     setSavingName(true);
     setError(null);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}`, {
+      const res = await fetch(`${apiBase}/${campaignId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
@@ -104,7 +110,9 @@ export function EditableCampaignName({
         setEditingName(false);
         return;
       }
-      onSaved(data.campaign?.name ?? trimmed);
+      onSaved(
+        (data.campaign?.name ?? data.template?.name ?? trimmed) as string
+      );
       setEditingName(false);
     } catch {
       setError("Failed to save");
@@ -113,7 +121,7 @@ export function EditableCampaignName({
     } finally {
       setSavingName(false);
     }
-  }, [campaignId, nameDraft, onSaved, value]);
+  }, [apiBase, campaignId, nameDraft, onSaved, value]);
 
   const saveAdvertiser = useCallback(async () => {
     const trimmed = advertiserDraft.trim();
@@ -131,7 +139,7 @@ export function EditableCampaignName({
     setSavingAdvertiser(true);
     setError(null);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}`, {
+      const res = await fetch(`${apiBase}/${campaignId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ advertiser: trimmed }),
@@ -143,7 +151,9 @@ export function EditableCampaignName({
         setEditingAdvertiser(false);
         return;
       }
-      onAdvertiserSaved(data.campaign?.advertiser ?? trimmed);
+      onAdvertiserSaved(
+        (data.campaign?.advertiser ?? data.template?.advertiser ?? trimmed) as string
+      );
       setEditingAdvertiser(false);
     } catch {
       setError("Failed to save");
@@ -152,7 +162,7 @@ export function EditableCampaignName({
     } finally {
       setSavingAdvertiser(false);
     }
-  }, [advertiser, advertiserDraft, campaignId, onAdvertiserSaved]);
+  }, [advertiser, advertiserDraft, apiBase, campaignId, onAdvertiserSaved]);
 
   const separator = (
     <span className="shrink-0 px-1.5 text-muted-foreground" aria-hidden>
@@ -206,7 +216,7 @@ export function EditableCampaignName({
             value={nameDraft}
             disabled={savingName}
             maxLength={200}
-            aria-label="Campaign name"
+            aria-label={nameLabel}
             className={cn(
               "min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 py-0.5 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
               className

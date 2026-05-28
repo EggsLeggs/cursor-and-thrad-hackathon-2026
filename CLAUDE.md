@@ -56,7 +56,9 @@ OVERMIND_API_KEY      # from console.overmindlab.ai (`ovr_…`)
 TAVILY_API_KEY        # from app.tavily.com
 
 ## Observability (Overmind PATH B)
-`lib/overmind.ts` calls `init({ serviceName: "sentinel" })` per agent run and `shutdownOvermind()` after to flush spans (required in Next.js API routes). OTLP export goes to `https://api.overmindlab.ai/api/v1/traces` with header `X-Api-Key` (the published `@overmind-lab/trace-sdk` 0.0.6 uses a wrong path/header). Agents appear in [console.overmindlab.ai/agents](https://console.overmindlab.ai/agents) after scenarios run with `OVERMIND_API_KEY` set.
+`lib/overmind.ts` exports OTLP to `https://api.overmindlab.ai/api/v1/traces` with `X-Api-Key`. `run-agent` **awaits** the agent and `flushOvermind()` so spans are not dropped. Verify with `POST /api/overmind/ping`.
+
+**Dashboard:** PATH B traces show under your service name (`sentinel`) in Overmind **tracing/telemetry** views. The **Agents** page (`/agents`) is mainly for PATH A (CLI-registered Python agents); it can stay empty while traces still ingest. Use the same API key as the account logged into [console.overmindlab.ai](https://console.overmindlab.ai).
 
 ## Design system
 Dark-first, muted monochrome, compact text, pill controls, subtle borders.

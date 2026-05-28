@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { createCampaign, listCampaigns } from "@/lib/campaigns-db";
-import { createCampaignFromTemplate } from "@/lib/templates-db";
+import { createTemplate, listTemplates } from "@/lib/templates-db";
 import { getWorkspaceForUser } from "@/lib/workspace";
+
+export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
@@ -14,7 +13,6 @@ const createSchema = z.object({
   maxCPM: z.number().positive().optional(),
   brandKeywords: z.array(z.string()).optional(),
   blockedTopics: z.array(z.string()).optional(),
-  templateId: z.string().uuid().optional(),
 });
 
 export async function GET() {
@@ -25,11 +23,11 @@ export async function GET() {
 
   const workspace = await getWorkspaceForUser(session.user.id);
   if (!workspace) {
-    return NextResponse.json({ campaigns: [], workspace: null });
+    return NextResponse.json({ templates: [], workspace: null });
   }
 
-  const list = await listCampaigns(workspace.id);
-  return NextResponse.json({ campaigns: list, workspace });
+  const list = await listTemplates(workspace.id);
+  return NextResponse.json({ templates: list, workspace });
 }
 
 export async function POST(req: Request) {
@@ -52,15 +50,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const { templateId, ...input } = parsed.data;
-
-  const campaign = templateId
-    ? await createCampaignFromTemplate(workspace.id, templateId, input)
-    : await createCampaign(workspace.id, input);
-
-  if (!campaign) {
-    return NextResponse.json({ error: "Template not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ campaign }, { status: 201 });
+  const template = await createTemplate(workspace.id, parsed.data);
+  return NextResponse.json({ template }, { status: 201 });
 }

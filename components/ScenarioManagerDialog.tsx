@@ -24,14 +24,20 @@ import {
 import type { CampaignScenario } from "@/lib/scenarios-db";
 import type { Message } from "@/lib/store";
 
+type ScenarioLike = Pick<
+  CampaignScenario,
+  "id" | "label" | "category" | "messages"
+>;
+
 type Props = {
   campaignId: string;
   campaignName?: string;
   advertiser?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  editing?: CampaignScenario | null;
+  editing?: ScenarioLike | null;
   onSaved: () => void;
+  resourceKind?: "campaign" | "template";
 };
 
 const emptyMessages: Message[] = [
@@ -47,7 +53,10 @@ export function ScenarioManagerDialog({
   onOpenChange,
   editing,
   onSaved,
+  resourceKind = "campaign",
 }: Props) {
+  const apiBase =
+    resourceKind === "template" ? "/api/templates" : "/api/campaigns";
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState<ScenarioCategory>("success");
   const [messages, setMessages] = useState<Message[]>(emptyMessages);
@@ -113,8 +122,8 @@ export function ScenarioManagerDialog({
     setError(null);
     try {
       const url = isEdit
-        ? `/api/campaigns/${campaignId}/scenarios/${editing!.id}`
-        : `/api/campaigns/${campaignId}/scenarios`;
+        ? `${apiBase}/${campaignId}/scenarios/${editing!.id}`
+        : `${apiBase}/${campaignId}/scenarios`;
       const res = await fetch(url, {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,7 +153,7 @@ export function ScenarioManagerDialog({
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/scenarios/generate`, {
+      const res = await fetch(`${apiBase}/${campaignId}/scenarios/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: aiPrompt.trim(), count }),

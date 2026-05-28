@@ -11,11 +11,31 @@ export type ThradBidResult = {
   bidId: string;
 } | null;
 
-export async function requestBid(
+export type ThradBidAudit = {
+  result: ThradBidResult;
+  httpStatus: number;
+  request: Record<string, unknown>;
+  response: unknown;
+};
+
+export async function requestBidWithAudit(
   userId: string,
   chatId: string,
   messages: Message[]
-): Promise<ThradBidResult> {
+): Promise<ThradBidAudit> {
+  const request = {
+    userId,
+    chatId,
+    messages: messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      timestamp: new Date().toISOString(),
+    })),
+    request_type: "contextual",
+    ad_formats: ["sponsored_message"],
+    config: { ad_offset: 0, max_frequency: 0 },
+  };
+
   try {
     const res = await fetch(THRAD_API, {
       method: "POST",
@@ -28,31 +48,42 @@ export async function requestBid(
         "X-Forwarded-For": "1.2.3.4",
         "User-Agent": "Sentinel/1.0",
       },
-      body: JSON.stringify({
-        userId,
-        chatId,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: new Date().toISOString(),
-        })),
-        request_type: "contextual",
-        ad_formats: ["sponsored_message"],
-        config: { ad_offset: 0, max_frequency: 0 },
-      }),
+      body: JSON.stringify(request),
     });
     const data = await res.json();
-    if (!data?.data?.bid) return null;
+    if (!data?.data?.bid) {
+      return { result: null, httpStatus: res.status, request, response: data };
+    }
     const bid = data.data.bid;
     return {
-      headline: bid.headline,
-      description: bid.description ?? "",
-      advertiser: bid.advertiser,
-      price: bid.price,
-      ctaText: bid.cta_text ?? "Learn More",
-      bidId: bid.bidId,
+      result: {
+        headline: bid.headline,
+        description: bid.description ?? "",
+        advertiser: bid.advertiser,
+        price: bid.price,
+        ctaText: bid.cta_text ?? "Learn More",
+        bidId: bid.bidId,
+      },
+      httpStatus: res.status,
+      request,
+      response: data,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    return {
+      result: null,
+      httpStatus: 0,
+      request,
+      response: { error: err instanceof Error ? err.message : String(err) },
+    };
   }
+}
+
+/** @deprecated Use requestBidWithAudit for new code paths */
+export async function requestBid(
+  userId: string,
+  chatId: string,
+  messages: Message[]
+): Promise<ThradBidResult> {
+  const { result } = await requestBidWithAudit(userId, chatId, messages);
+  return result;
 }

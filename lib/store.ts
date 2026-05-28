@@ -1,5 +1,16 @@
 export type Message = { role: "user" | "assistant"; content: string };
 
+export type DecisionAuditEvent = {
+  id: string;
+  timestamp: string;
+  actor: "agent" | "operator" | "system";
+  service: "sentinel" | "tavily" | "openai" | "thrad" | "overmind";
+  action: string;
+  summary: string;
+  status: "success" | "error" | "skipped" | "warning";
+  details?: Record<string, unknown>;
+};
+
 export type Decision = {
   id: string;
   timestamp: string;
@@ -22,6 +33,7 @@ export type Decision = {
   humanAction?: "approved" | "vetoed" | "flagged";
   humanNote?: string;
   humanTimestamp?: string;
+  auditLog?: DecisionAuditEvent[];
 };
 
 export type Campaign = {

@@ -2,7 +2,8 @@ import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import { getDb } from "@/lib/db";
 import { decisions, type DbDecision } from "@/lib/db/schema";
-import type { Decision } from "@/lib/store";
+import type { Decision, DecisionAuditEvent } from "@/lib/store";
+import { createAuditEvent } from "@/lib/decision-audit";
 
 const MAX_DECISIONS_PER_CAMPAIGN = 50;
 
@@ -23,8 +24,22 @@ function rowToDecision(row: DbDecision): Decision {
     humanAction: row.humanAction ?? undefined,
     humanNote: row.humanNote ?? undefined,
     humanTimestamp: row.humanTimestamp?.toISOString(),
+    auditLog: row.auditLog ?? [],
   };
 }
+
+export async function getDecisionById(
+  campaignId: string,
+  id: string
+): Promise<Decision | null> {
+  const [row] = await getDb()
+    .select()
+    .from(decisions)
+    .where(and(eq(decisions.id, id), eq(decisions.campaignId, campaignId)))
+    .limit(1);
+  return row ? rowToDecision(row) : null;
+}
+
 
 export async function getDecisions(campaignId: string): Promise<Decision[]> {
   const rows = await getDb()
@@ -48,7 +63,7 @@ export async function getVetoedCount(campaignId: string): Promise<number> {
 
 export async function addDecision(
   campaignId: string,
-  d: Omit<Decision, "id" | "timestamp">
+  d: Omit<Decision, "id" | "timestamp"> & { auditLog?: DecisionAuditEvent[] }
 ): Promise<Decision> {
   const id = uuid();
   const [row] = await getDb()
@@ -66,6 +81,7 @@ export async function addDecision(
       flags: d.flags,
       suggestedCPM: d.suggestedCPM,
       adReturned: d.adReturned,
+      auditLog: d.auditLog ?? [],
     })
     .returning();
 
@@ -97,13 +113,28 @@ export async function applyHumanAction(
   userId: string,
   note?: string
 ): Promise<Decision | null> {
+  const existing = await getDecisionById(campaignId, id);
+  if (!existing) return null;
+
+  const humanTimestamp = new Date();
+  const auditEvent = createAuditEvent({
+    timestamp: humanTimestamp.toISOString(),
+    actor: "operator",
+    service: "sentinel",
+    action: "human_review",
+    summary: `Operator ${action} this decision`,
+    status: action === "vetoed" ? "warning" : "success",
+    details: { action, note: note ?? null, userId },
+  });
+
   const [row] = await getDb()
     .update(decisions)
     .set({
       humanAction: action,
       humanNote: note,
-      humanTimestamp: new Date(),
+      humanTimestamp,
       humanRespondedByUserId: userId,
+      auditLog: [...(existing.auditLog ?? []), auditEvent],
     })
     .where(and(eq(decisions.id, id), eq(decisions.campaignId, campaignId)))
     .returning();
