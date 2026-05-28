@@ -1,13 +1,16 @@
 import OpenAI from "openai";
 import { tavily } from "@tavily/core";
-import { ensureOvermind } from "./overmind";
+import { flushOvermind, init as initOvermind } from "./overmind";
 import { requestBid } from "./thrad";
-import { addDecision, Campaign, Message, store } from "./store";
+import { addDecision, getVetoedCount } from "./decisions-db";
+import { Campaign, Message } from "./store";
 import { v4 as uuid } from "uuid";
 
 let openaiClient: OpenAI | null = null;
 function getOpenAI() {
-  if (!openaiClient) openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
   return openaiClient;
 }
 
@@ -25,8 +28,13 @@ type AgentDecision = {
   suggestedCPM: number;
 };
 
-export async function runDecisionAgent(messages: Message[], campaign: Campaign): Promise<void> {
-  ensureOvermind();
+export async function runDecisionAgent(
+  campaignId: string,
+  messages: Message[],
+  campaign: Campaign
+): Promise<void> {
+  initOvermind({ serviceName: "sentinel" });
+
   const contextSnippet = messages
     .filter((m) => m.role === "user")
     .map((m) => m.content)
@@ -55,13 +63,13 @@ export async function runDecisionAgent(messages: Message[], campaign: Campaign):
   }
 
   // Step 2: Veto context
-  const recentVetoCount = store.vetoed.length;
+  const recentVetoCount = await getVetoedCount(campaignId);
   const vetoContext =
     recentVetoCount > 0
       ? `Human operators have vetoed ${recentVetoCount} of your previous decisions this session. Exercise more caution.`
       : "No decisions have been vetoed this session.";
 
-  // Step 3: GPT-4o reasoning (auto-traced by Overmind)
+  // Step 3: GPT-4o reasoning (auto-traced to Overmind via @overmind-lab/trace-sdk)
   const systemPrompt = `You are Sentinel, an autonomous media buying agent for ${campaign.advertiser}.
 
 Campaign: ${campaign.name}
@@ -146,7 +154,7 @@ Make your decision.`;
     }
   }
 
-  addDecision({
+  await addDecision(campaignId, {
     campaignName: campaign.name,
     advertiser: campaign.advertiser,
     contextSnippet,
@@ -158,4 +166,6 @@ Make your decision.`;
     suggestedCPM: agentDecision.suggestedCPM,
     adReturned,
   });
+
+  await flushOvermind();
 }

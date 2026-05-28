@@ -10,7 +10,7 @@ challenge decisions. Vetoes feed back into the agent's context on subsequent cal
 ## The core loop
 1. Human fires a conversation scenario (or scenarios run automatically)
 2. Agent calls Tavily to check brand safety for the advertiser
-3. Agent calls GPT-4o (traced by Overmind) with: campaign config + conversation + safety context → returns structured JSON decision
+3. Agent calls GPT-4o (traced to Overmind) with: campaign config + conversation + safety context → returns structured JSON decision
 4. If decision is "bid", agent calls Thrad bid API to retrieve a real ad
 5. Decision (with reasoning, flags, ad creative) is stored and appears in the UI
 6. Human can approve / veto / flag from the UI; vetoes accumulate and are passed back to the agent
@@ -18,7 +18,7 @@ challenge decisions. Vetoes feed back into the agent's context on subsequent cal
 ## APIs in use
 - OpenAI GPT-4o (`gpt-4o`) — the reasoning engine for every decision
 - Thrad Bid API (REST, staging key) — real-time ad retrieval for bid decisions
-- Overmind JS SDK — automatic tracing of every OpenAI call (wraps OpenAI client)
+- Overmind JS Tracing SDK (`@overmind-lab/trace-sdk`) — auto-captures every OpenAI call to `api.overmindlab.ai`
 - Tavily Search API — brand safety grounding before each decision
 
 ## File structure
@@ -32,7 +32,7 @@ app/
     decisions/[id]/action/route.ts  # POST — records human approve/veto/flag
 lib/
   store.ts          # In-memory decision store (module-level, no database)
-  overmind.ts       # Overmind singleton init
+  overmind.ts       # Overmind `init()` — PATH B tracing SDK bootstrap
   agent.ts          # Core decision agent (Tavily → GPT-4o → Thrad)
   thrad.ts          # Thrad bid API wrapper
   scenarios.ts      # Pre-baked demo conversation contexts
@@ -52,8 +52,11 @@ Campaign: name, advertiser, goal, maxCPM, brandKeywords[], blockedTopics[]
 ## Environment variables required
 OPENAI_API_KEY
 THRAD_PUBLISHER_ID    # staging key from platform.thrads.ai
-OVERMIND_API_KEY      # from console.overmindlab.ai
+OVERMIND_API_KEY      # from console.overmindlab.ai (`ovr_…`)
 TAVILY_API_KEY        # from app.tavily.com
+
+## Observability (Overmind PATH B)
+`lib/overmind.ts` calls `init({ serviceName: "sentinel" })` per agent run and `shutdownOvermind()` after to flush spans (required in Next.js API routes). OTLP export goes to `https://api.overmindlab.ai/api/v1/traces` with header `X-Api-Key` (the published `@overmind-lab/trace-sdk` 0.0.6 uses a wrong path/header). Agents appear in [console.overmindlab.ai/agents](https://console.overmindlab.ai/agents) after scenarios run with `OVERMIND_API_KEY` set.
 
 ## Design system
 Dark-first, muted monochrome, compact text, pill controls, subtle borders.
@@ -80,5 +83,5 @@ Fonts: Geist Sans + Geist Mono.
 2. Fire marathon scenario — BID card appears. Show reasoning + Thrad ad creative.
 3. Fire controversy scenario — FLAGGED. Veto it. Explain veto feeds back to agent.
 4. Fire weather scenario — SKIP. Agent saves budget.
-5. Point to Overmind link — "Every GPT-4o call is traced. Full auditability."
+5. Open console.overmindlab.ai — "Every GPT-4o call is traced. Full auditability."
 6. Closing: "This is what trustworthy AI-native advertising looks like."

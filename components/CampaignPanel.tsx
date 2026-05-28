@@ -1,6 +1,25 @@
 "use client";
+
+import { useCallback, useEffect, useState } from "react";
 import { Campaign } from "@/lib/store";
-import { scenarios } from "@/lib/scenarios";
+import {
+  CampaignSettingsDialog,
+  type CampaignSettings,
+} from "@/components/CampaignSettingsDialog";
+import { ScenarioManagerDialog } from "@/components/ScenarioManagerDialog";
+import { Separator } from "@/components/ui/separator";
+import { scenarioCategoryConfig } from "@/lib/scenario-categories";
+import type { CampaignScenario } from "@/lib/scenarios-db";
+import {
+  ExternalLink,
+  Pencil,
+  Play,
+  Plus,
+  Settings2,
+  Trash2,
+} from "lucide-react";
+
+const iconSm = "h-3.5 w-3.5 shrink-0";
 
 type Stats = {
   total: number;
@@ -12,140 +31,286 @@ type Stats = {
 };
 
 type Props = {
+  campaignId: string;
   campaign: Campaign;
   stats: Stats;
   running: boolean;
-  onRunScenario: (i: number) => void;
-  onRunAll: () => void;
+  onRunScenario: (scenarioId: string) => void;
+  onRunAll: (scenarioIds: string[]) => void;
+  onCampaignSaved?: (settings: CampaignSettings) => void;
 };
 
-export function CampaignPanel({ campaign, stats, running, onRunScenario, onRunAll }: Props) {
+const sectionLabelClass =
+  "text-[11px] font-medium uppercase tracking-wider text-muted-foreground";
+
+function SectionHeader({
+  children,
+  action,
+}: {
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
+      <h2 className={`min-w-0 truncate ${sectionLabelClass}`}>{children}</h2>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
+export function CampaignPanel({
+  campaignId,
+  campaign,
+  stats,
+  running,
+  onRunScenario,
+  onRunAll,
+  onCampaignSaved,
+}: Props) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [scenarioDialogOpen, setScenarioDialogOpen] = useState(false);
+  const [editingScenario, setEditingScenario] = useState<CampaignScenario | null>(null);
+  const [scenarios, setScenarios] = useState<CampaignScenario[]>([]);
+  const [scenariosLoading, setScenariosLoading] = useState(true);
+  const [goal, setGoal] = useState(campaign.goal);
+  const [maxCPM, setMaxCPM] = useState(campaign.maxCPM);
+  const [blockedTopics, setBlockedTopics] = useState(campaign.blockedTopics);
+
+  const fetchScenarios = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/scenarios`);
+      if (res.ok) {
+        const data = await res.json();
+        setScenarios(data.scenarios ?? []);
+      }
+    } finally {
+      setScenariosLoading(false);
+    }
+  }, [campaignId]);
+
+  useEffect(() => {
+    fetchScenarios();
+  }, [fetchScenarios]);
+
+  useEffect(() => {
+    setGoal(campaign.goal);
+    setMaxCPM(campaign.maxCPM);
+    setBlockedTopics(campaign.blockedTopics);
+  }, [campaign.goal, campaign.maxCPM, campaign.blockedTopics]);
+
+  async function handleDeleteScenario(scenarioId: string) {
+    const res = await fetch(
+      `/api/campaigns/${campaignId}/scenarios/${scenarioId}`,
+      { method: "DELETE" }
+    );
+    if (res.ok) {
+      setScenarios((prev) => prev.filter((s) => s.id !== scenarioId));
+    }
+  }
+
+  function openAddScenario() {
+    setEditingScenario(null);
+    setScenarioDialogOpen(true);
+  }
+
+  function openEditScenario(scenario: CampaignScenario) {
+    setEditingScenario(scenario);
+    setScenarioDialogOpen(true);
+  }
+
   const statItems = [
-    { label: "total",    value: stats.total,         color: "#ededed" },
-    { label: "bids",     value: stats.bids,          color: "#10b981" },
-    { label: "skips",    value: stats.skips,         color: "#6b7280" },
-    { label: "flagged",  value: stats.flagged,       color: "#ef4444" },
-    { label: "vetoed",   value: stats.vetoed,        color: "#f97316" },
-    { label: "reviewed", value: stats.humanReviewed, color: "#6366f1" },
+    { label: "Total", value: stats.total, color: "text-foreground" },
+    { label: "Bids", value: stats.bids, color: "text-emerald-500" },
+    { label: "Skips", value: stats.skips, color: "text-muted-foreground" },
+    { label: "Flagged", value: stats.flagged, color: "text-red-500" },
+    { label: "Vetoed", value: stats.vetoed, color: "text-orange-500" },
+    { label: "Reviewed", value: stats.humanReviewed, color: "text-indigo-500" },
   ];
 
-  return (
-    <div className="space-y-3">
-      {/* Campaign config */}
-      <div
-        className="rounded-lg border p-4 space-y-3"
-        style={{ background: "#1c1c1c", borderColor: "#3e3e3e" }}
-      >
-        <div
-          className="text-xs uppercase tracking-widest font-mono font-medium"
-          style={{ color: "#00d4aa" }}
-        >
-          Active Campaign
-        </div>
-        <div>
-          <div className="text-sm font-medium" style={{ color: "#ededed" }}>
-            {campaign.name}
-          </div>
-          <div className="text-xs mt-1 leading-relaxed" style={{ color: "#707070" }}>
-            {campaign.goal}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-          <div>
-            <div style={{ color: "#707070" }}>advertiser</div>
-            <div style={{ color: "#ededed" }}>{campaign.advertiser}</div>
-          </div>
-          <div>
-            <div style={{ color: "#707070" }}>max CPM</div>
-            <div style={{ color: "#ededed" }}>${campaign.maxCPM.toFixed(2)}</div>
-          </div>
-        </div>
-        <div>
-          <div className="text-xs font-mono mb-1.5" style={{ color: "#707070" }}>
-            blocked topics
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {campaign.blockedTopics.map((t) => (
-              <span
-                key={t}
-                className="text-xs px-2 py-0.5 rounded-full border font-mono"
-                style={{ color: "#ef4444", borderColor: "#ef444430", background: "#ef444410" }}
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
+  const ghostActionClass =
+    "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40";
 
-      {/* Stats */}
-      <div
-        className="rounded-lg border p-4"
-        style={{ background: "#1c1c1c", borderColor: "#3e3e3e" }}
-      >
-        <div
-          className="text-xs uppercase tracking-widest font-mono font-medium mb-3"
-          style={{ color: "#00d4aa" }}
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+      <section className="min-w-0 pb-5">
+        <SectionHeader
+          action={
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Settings2 className={iconSm} aria-hidden />
+              Edit
+            </button>
+          }
         >
-          Session Stats
+          Campaign
+        </SectionHeader>
+
+        <p className="break-words text-sm leading-relaxed text-foreground/90">
+          {goal || <span className="italic text-muted-foreground">No description</span>}
+        </p>
+
+        <dl className="mt-4 space-y-2 text-xs">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-muted-foreground">Max CPM</dt>
+            <dd className="font-medium tabular-nums text-foreground">
+              ${maxCPM.toFixed(2)}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-4">
+          <p className="mb-2 text-xs text-muted-foreground">Blocked topics</p>
+          {blockedTopics.length === 0 ? (
+            <p className="text-xs text-muted-foreground/80">None configured</p>
+          ) : (
+            <ul className="flex min-w-0 flex-wrap gap-1.5" role="list">
+              {blockedTopics.map((t) => (
+                <li key={t} className="max-w-full min-w-0">
+                  <span className="inline-block max-w-full break-all rounded-md bg-red-500/10 px-2 py-0.5 font-mono text-[11px] text-red-500">
+                    {t}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div className="grid grid-cols-3 gap-2">
+
+        <CampaignSettingsDialog
+          campaignId={campaignId}
+          settings={{ goal, maxCPM, blockedTopics }}
+          campaignName={campaign.name}
+          advertiser={campaign.advertiser}
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          onSaved={(saved) => {
+            setGoal(saved.goal);
+            setMaxCPM(saved.maxCPM);
+            setBlockedTopics(saved.blockedTopics);
+            onCampaignSaved?.(saved);
+          }}
+        />
+      </section>
+
+      <Separator />
+
+      <section className="min-w-0 shrink-0 py-5">
+        <SectionHeader>Session</SectionHeader>
+        <dl className="grid min-w-0 grid-cols-3 gap-x-1 gap-y-3">
           {statItems.map(({ label, value, color }) => (
-            <div key={label} className="text-center">
-              <div className="text-lg font-mono font-medium" style={{ color }}>
+            <div key={label} className="min-w-0">
+              <dd className={`font-mono text-base font-medium tabular-nums leading-none ${color}`}>
                 {value}
-              </div>
-              <div className="text-xs font-mono" style={{ color: "#505050" }}>
-                {label}
-              </div>
+              </dd>
+              <dt className="mt-1 truncate text-[10px] text-muted-foreground">{label}</dt>
             </div>
           ))}
-        </div>
-      </div>
+        </dl>
+      </section>
 
-      {/* Scenarios */}
-      <div
-        className="rounded-lg border p-4 space-y-1.5"
-        style={{ background: "#1c1c1c", borderColor: "#3e3e3e" }}
-      >
-        <div
-          className="text-xs uppercase tracking-widest font-mono font-medium mb-2"
-          style={{ color: "#00d4aa" }}
+      <Separator />
+
+      <section className="min-w-0 py-5">
+        <SectionHeader
+          action={
+            <button
+              type="button"
+              onClick={openAddScenario}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Plus className={iconSm} aria-hidden />
+              Add
+            </button>
+          }
         >
-          Fire Scenario
-        </div>
-        {scenarios.map((s, i) => (
-          <button
-            key={i}
-            onClick={() => onRunScenario(i)}
-            disabled={running}
-            className="w-full text-left text-xs py-2 px-3 rounded-md border transition-colors duration-150 disabled:opacity-40 hover:bg-[#2a2a2a]"
-            style={{ borderColor: "#3e3e3e", color: "#ededed", background: "#161616" }}
-          >
-            {s.label}
-          </button>
-        ))}
+          Scenarios
+        </SectionHeader>
+
+        {scenariosLoading ? (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        ) : scenarios.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No scenarios yet.</p>
+        ) : (
+          <ul className="min-w-0 space-y-0.5" role="list">
+            {scenarios.map((s) => {
+              const { icon: Icon, className } = scenarioCategoryConfig[s.category];
+              return (
+                <li key={s.id} className="group relative min-w-0 rounded-md">
+                  <button
+                    type="button"
+                    onClick={() => onRunScenario(s.id)}
+                    disabled={running}
+                    title={s.label}
+                    className="flex w-full min-w-0 items-center gap-2 rounded-md py-2 pl-2 pr-16 text-left text-xs transition-colors hover:bg-secondary disabled:opacity-40"
+                  >
+                    <Icon className={`${iconSm} ${className}`} aria-hidden />
+                    <span className="min-w-0 truncate font-medium text-foreground">{s.label}</span>
+                  </button>
+                  <div
+                    className="absolute inset-y-0 right-0 flex items-center rounded-r-md bg-gradient-to-l from-background from-40% to-transparent pl-6 pr-0.5 opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+                    role="group"
+                    aria-label={`Actions for ${s.label}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openEditScenario(s)}
+                      className={ghostActionClass}
+                      aria-label={`Edit ${s.label}`}
+                    >
+                      <Pencil className={iconSm} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteScenario(s.id)}
+                      disabled={running}
+                      className={`${ghostActionClass} hover:bg-destructive/10 hover:text-destructive`}
+                      aria-label={`Remove ${s.label}`}
+                    >
+                      <Trash2 className={iconSm} aria-hidden />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
         <button
-          onClick={onRunAll}
-          disabled={running}
-          className="w-full text-xs py-2 px-3 rounded-md border transition-colors duration-150 font-medium disabled:opacity-40 mt-1"
-          style={{ borderColor: "#00d4aa30", color: "#00d4aa", background: "#00d4aa08" }}
+          type="button"
+          onClick={() => onRunAll(scenarios.map((s) => s.id))}
+          disabled={running || scenarios.length === 0}
+          className="btn-primary mt-4 flex w-full max-w-full shrink-0 items-center justify-center gap-2 disabled:opacity-40"
         >
-          {running ? "running…" : "▶ Run all scenarios"}
+          <Play className={iconSm} aria-hidden />
+          <span className="truncate">{running ? "Running…" : "Run all"}</span>
         </button>
+      </section>
       </div>
 
-      {/* Overmind link */}
-      <a
-        href="https://console.overmindlab.ai/agents"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-between w-full rounded-lg border px-3 py-2.5 text-xs font-mono transition-colors duration-150 hover:bg-[#2a2a2a]"
-        style={{ borderColor: "#3e3e3e", color: "#707070", background: "#1c1c1c" }}
-      >
-        <span>View Overmind traces</span>
-        <span>↗</span>
-      </a>
+      <ScenarioManagerDialog
+        campaignId={campaignId}
+        campaignName={campaign.name}
+        advertiser={campaign.advertiser}
+        open={scenarioDialogOpen}
+        onOpenChange={setScenarioDialogOpen}
+        editing={editingScenario}
+        onSaved={fetchScenarios}
+      />
+
+      <div className="mt-auto min-w-0 shrink-0 border-t border-border pt-4">
+        <a
+          href="https://console.overmindlab.ai/agents"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <span className="min-w-0 truncate">View Overmind traces</span>
+          <ExternalLink className={`${iconSm} shrink-0`} aria-hidden />
+        </a>
+      </div>
     </div>
   );
 }

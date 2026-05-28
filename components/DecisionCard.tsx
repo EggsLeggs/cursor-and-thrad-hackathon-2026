@@ -1,13 +1,18 @@
 "use client";
 import { useState } from "react";
+import { AlertTriangle, Check, Flag, X } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { Decision } from "@/lib/store";
 
+const iconSm = "h-3.5 w-3.5 shrink-0";
+
 export function DecisionCard({
   decision: d,
+  campaignId,
   onAction,
 }: {
   decision: Decision;
+  campaignId: string;
   onAction: () => void;
 }) {
   const [note, setNote] = useState("");
@@ -18,7 +23,7 @@ export function DecisionCard({
     await fetch(`/api/decisions/${d.id}/action`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, note }),
+      body: JSON.stringify({ action, note, campaignId }),
     });
     onAction();
     setActing(false);
@@ -30,106 +35,80 @@ export function DecisionCard({
     second: "2-digit",
   });
 
-  const borderColor =
+  const borderClass =
     d.humanAction === "vetoed"
-      ? "#f9731640"
+      ? "border-orange-500/30"
       : d.humanAction === "approved"
-      ? "#6366f140"
-      : d.decision === "flagged"
-      ? "#ef444430"
-      : "#3e3e3e";
+        ? "border-indigo-500/30"
+        : d.decision === "flagged"
+          ? "border-red-500/30"
+          : "border-border";
 
   return (
     <div
-      className="rounded-lg border p-4 space-y-3 transition-colors duration-150"
-      style={{ background: "#232323", borderColor }}
+      className={`space-y-3 rounded-lg border bg-card p-4 text-card-foreground transition-colors duration-150 ${borderClass}`}
     >
-      {/* Header row */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusBadge
             status={
               d.humanAction === "vetoed"
                 ? "vetoed"
                 : d.humanAction === "approved"
-                ? "approved"
-                : d.decision
+                  ? "approved"
+                  : d.decision
             }
           />
-          <span className="text-xs font-mono" style={{ color: "#707070" }}>
-            {d.id.slice(0, 8)}
-          </span>
+          <span className="font-mono text-xs text-muted-foreground">{d.id.slice(0, 8)}</span>
         </div>
-        <span className="text-xs font-mono shrink-0" style={{ color: "#707070" }}>
-          {time}
-        </span>
+        <span className="shrink-0 font-mono text-xs text-muted-foreground">{time}</span>
       </div>
 
-      {/* Conversation snippet */}
-      <div
-        className="rounded-md p-2.5 text-xs font-mono leading-relaxed"
-        style={{ background: "#0f0f0f", color: "#707070" }}
-      >
-        <span className="text-xs uppercase tracking-widest mr-2" style={{ color: "#00d4aa" }}>
+      <div className="rounded-md bg-muted p-2.5 font-mono text-xs leading-relaxed text-muted-foreground">
+        <span className="mr-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           ctx
         </span>
         &quot;{d.contextSnippet}
         {d.contextSnippet.length >= 120 ? "…" : ""}&quot;
       </div>
 
-      {/* Reasoning */}
-      <p className="text-sm leading-relaxed" style={{ color: "#ededed" }}>
-        {d.reasoning}
-      </p>
+      <p className="text-sm leading-relaxed">{d.reasoning}</p>
 
-      {/* Metadata row */}
-      <div className="flex flex-wrap gap-4 text-xs font-mono" style={{ color: "#707070" }}>
+      <div className="flex flex-wrap gap-4 font-mono text-xs text-muted-foreground">
         <span>
-          confidence <span style={{ color: "#ededed" }}>{d.confidence}%</span>
+          confidence <span className="text-foreground">{d.confidence}%</span>
         </span>
         {d.suggestedCPM ? (
           <span>
-            CPM <span style={{ color: "#ededed" }}>${d.suggestedCPM.toFixed(2)}</span>
+            CPM <span className="text-foreground">${d.suggestedCPM.toFixed(2)}</span>
           </span>
         ) : null}
       </div>
 
-      {/* Flags */}
       {d.flags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {d.flags.map((f) => (
             <span
               key={f}
-              className="text-xs px-2 py-0.5 rounded-full border font-mono"
-              style={{ color: "#ef4444", borderColor: "#ef444430", background: "#ef444410" }}
+              className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-mono text-xs text-red-500"
             >
-              ⚠ {f}
+              <AlertTriangle className={iconSm} aria-hidden />
+              {f}
             </span>
           ))}
         </div>
       )}
 
-      {/* Ad creative returned */}
       {d.adReturned && (
-        <div
-          className="rounded-md p-3 border space-y-1"
-          style={{ borderColor: "#00d4aa20", background: "#00d4aa08" }}
-        >
-          <div
-            className="text-xs uppercase tracking-widest font-mono mb-1.5"
-            style={{ color: "#00d4aa" }}
-          >
-            ad served
+        <div className="space-y-1 rounded-md border border-border bg-muted/50 p-3">
+          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Ad served
           </div>
-          <div className="text-sm font-medium" style={{ color: "#ededed" }}>
-            {d.adReturned.headline}
-          </div>
+          <div className="text-sm font-medium">{d.adReturned.headline}</div>
           {d.adReturned.description && (
-            <div className="text-xs" style={{ color: "#707070" }}>
-              {d.adReturned.description}
-            </div>
+            <div className="text-xs text-muted-foreground">{d.adReturned.description}</div>
           )}
-          <div className="flex gap-3 text-xs font-mono mt-1" style={{ color: "#707070" }}>
+          <div className="mt-1 flex gap-3 font-mono text-xs text-muted-foreground">
             <span>{d.adReturned.advertiser}</span>
             <span>·</span>
             <span>CPM ${d.adReturned.price.toFixed(2)}</span>
@@ -139,51 +118,45 @@ export function DecisionCard({
         </div>
       )}
 
-      {/* Human action record */}
       {d.humanAction && (
-        <div
-          className="text-xs rounded-md p-2 font-mono"
-          style={{ background: "#0f0f0f", color: "#707070" }}
-        >
-          operator: <span style={{ color: "#ededed" }}>{d.humanAction}</span>
+        <div className="rounded-md bg-muted p-2 font-mono text-xs text-muted-foreground">
+          operator: <span className="text-foreground">{d.humanAction}</span>
           {d.humanNote && <> — &quot;{d.humanNote}&quot;</>}
         </div>
       )}
 
-      {/* Action buttons — only before human acts */}
       {!d.humanAction && (
         <div className="space-y-2 pt-1">
           <div className="flex gap-2">
             {(["approved", "vetoed", "flagged"] as const).map((action) => {
               const styles = {
                 approved: {
-                  color: "#6366f1",
-                  border: "#6366f130",
-                  hover: "hover:bg-[#6366f110]",
-                  label: "✓ Approve",
+                  className: "text-indigo-500 border-indigo-500/30 hover:bg-indigo-500/10",
+                  label: "Approve",
+                  Icon: Check,
                 },
                 vetoed: {
-                  color: "#f97316",
-                  border: "#f9731630",
-                  hover: "hover:bg-[#f9731610]",
-                  label: "✗ Veto",
+                  className: "text-orange-500 border-orange-500/30 hover:bg-orange-500/10",
+                  label: "Veto",
+                  Icon: X,
                 },
                 flagged: {
-                  color: "#f59e0b",
-                  border: "#f59e0b30",
-                  hover: "hover:bg-[#f59e0b10]",
-                  label: "⚑ Flag",
+                  className: "text-amber-500 border-amber-500/30 hover:bg-amber-500/10",
+                  label: "Flag",
+                  Icon: Flag,
                 },
               }[action];
+              const { className, label, Icon } = styles;
               return (
                 <button
                   key={action}
+                  type="button"
                   onClick={() => act(action)}
                   disabled={acting}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 disabled:opacity-40 ${styles.hover}`}
-                  style={{ color: styles.color, borderColor: styles.border }}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border py-1.5 text-xs font-medium transition-colors duration-150 disabled:opacity-40 ${className}`}
                 >
-                  {styles.label}
+                  <Icon className={iconSm} aria-hidden />
+                  {label}
                 </button>
               );
             })}
@@ -192,12 +165,7 @@ export function DecisionCard({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add a note (optional)..."
-            className="w-full text-xs rounded-md px-2.5 py-1.5 font-mono outline-none transition-colors duration-150"
-            style={{
-              background: "#0f0f0f",
-              border: "1px solid #3e3e3e",
-              color: "#ededed",
-            }}
+            className="input font-mono text-xs"
           />
         </div>
       )}

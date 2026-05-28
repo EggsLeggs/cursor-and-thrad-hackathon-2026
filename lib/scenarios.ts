@@ -1,8 +1,19 @@
 import { Message } from "./store";
+import type { ScenarioCategory } from "./scenario-categories";
 
-export const scenarios: { label: string; messages: Message[] }[] = [
+/** @deprecated use ScenarioCategory */
+export type ScenarioTone = ScenarioCategory;
+
+export type DefaultScenario = {
+  label: string;
+  category: ScenarioCategory;
+  messages: Message[];
+};
+
+export const DEFAULT_SCENARIOS: DefaultScenario[] = [
   {
-    label: "🟢 High intent — marathon training",
+    label: "High intent — marathon training",
+    category: "success",
     messages: [
       {
         role: "user",
@@ -21,7 +32,8 @@ export const scenarios: { label: string; messages: Message[] }[] = [
     ],
   },
   {
-    label: "🔴 Brand safety — controversy",
+    label: "Brand safety — controversy",
+    category: "safety",
     messages: [
       {
         role: "user",
@@ -40,7 +52,8 @@ export const scenarios: { label: string; messages: Message[] }[] = [
     ],
   },
   {
-    label: "⚪ Low intent — weather",
+    label: "Low intent — weather",
+    category: "muted",
     messages: [
       {
         role: "user",
@@ -58,7 +71,8 @@ export const scenarios: { label: string; messages: Message[] }[] = [
     ],
   },
   {
-    label: "🟡 Medium intent — gym beginner",
+    label: "Medium intent — gym beginner",
+    category: "warning",
     messages: [
       {
         role: "user",
@@ -77,7 +91,8 @@ export const scenarios: { label: string; messages: Message[] }[] = [
     ],
   },
   {
-    label: "🔴 Blocked topic — protest",
+    label: "Blocked topic — protest",
+    category: "blocked",
     messages: [
       {
         role: "user",
@@ -92,3 +107,10 @@ export const scenarios: { label: string; messages: Message[] }[] = [
     ],
   },
 ];
+
+/** @deprecated use DEFAULT_SCENARIOS */
+export const scenarios = DEFAULT_SCENARIOS.map((s) => ({
+  label: s.label,
+  tone: s.category,
+  messages: s.messages,
+}));
